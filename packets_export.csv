@@ -1,0 +1,2 @@
+packet_id,source_node,destination_node,payload,strategy,spray_copies,hop_count,hop_path,created_at_epoch,stored_at_epoch,delivered_at_epoch,ttl_ms,transmissions,status,e2e_delay_ms
+0c839e20-13e5-4a06-b2c4-016160e329ad,NODE-A,NODE-B,"hi",EPIDEMIC,1,0,"NODE-A",1792043542658,1792043542658,,3600000,0,STORED,
