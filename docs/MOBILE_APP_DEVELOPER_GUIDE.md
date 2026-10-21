@@ -45,6 +45,7 @@ graph TD
 ```
 
 ### Module Breakdown
+
 * **`:core-dtn`**: A pure Kotlin module with **zero Android dependencies**. Contains routing algorithms, packet encapsulation, and wire protocol definitions. Can be compiled and unit-tested independently on any JVM.
 * **`:app`**: The Android application module containing the Jetpack Compose UI, Room SQLite database, Android 14+ background services, file utilities, and the Google Nearby Connections implementation.
 
@@ -53,12 +54,14 @@ graph TD
 ## 2. Core Subsystems & Code Implementation
 
 ### 2.1 Node Identity Management
+
 * **File**: `app/src/main/kotlin/com/oppmesh/dtn/util/NodeIdentityManager.kt`
 * **Function**: Generates and persists a unique, decentralized 8-alphanumeric Node ID (e.g. `A7B2C9F4`) upon first launch using `UUID.randomUUID()`.
 * **Storage**: Android `SharedPreferences` (`oppmesh_identity_prefs`).
 * **Design Rationale**: Eliminates the need for manual device pairing or pre-configured node IDs. Users can view their ID on the dashboard and share it with peers.
 
 ### 2.2 Routing Engine (`:core-dtn`)
+
 * **File**: `core-dtn/src/main/kotlin/com/oppmesh/dtn/domain/routing/RoutingEngine.kt`
 * **Interface**: Implements `selectPacketsForPeer()`, which evaluates a local packet collection against a newly encountered peer's known and delivered packet sets:
 
@@ -72,7 +75,8 @@ fun selectPacketsForPeer(
 ): List<OutgoingPacketSelection>
 ```
 
-#### Supported Routing Strategies:
+#### Supported Routing Strategies
+
 1. **Direct Delivery (`RoutingStrategy.DIRECT_DELIVERY`)**:
    * Packets are only forwarded when `peerNodeId == packet.destinationNodeId`.
    * Never replicates to intermediate relays (minimal transmission overhead).
@@ -86,23 +90,29 @@ fun selectPacketsForPeer(
    * Delivers near-Epidemic delay while strictly bounding network overhead.
 
 ### 2.3 Peer-to-Peer Mesh Transport
+
 * **File**: `app/src/main/kotlin/com/oppmesh/dtn/data/nearby/NearbyMeshManager.kt`
 * **Underlying Protocol**: Google Nearby Connections API (`Strategy.P2P_CLUSTER`) over Bluetooth Low Energy (BLE), Wi-Fi Direct, and Wi-Fi Aware.
 
 #### Fast Opportunistic Discovery Duty Cycle
+
 Opportunistic encounters in real life can last only 10–30 seconds. To maximize discovery and avoid deadlocks:
+
 1. **Simultaneous Dual-Role**: Devices advertise and discover concurrently.
 2. **Deterministic Tie-Break Leadership**: When two devices discover each other simultaneously, the node with the lexicographically smaller ID initiates the connection (`localNodeId < peerNodeId`), preventing connection collisions.
 3. **Rapid Fallback Watchdog (3s / 15s)**: If a connection handshake does not finalize within 3 seconds, the lock is released. A 15-second discovery cycle periodically restarts discovery to unstick stale Android BLE caches.
 4. **Periodic Contact Re-Sync (4s)**: While two devices remain continuously in range, a 4-second ticker periodically checks for newly arrived or generated bundles and forwards them immediately.
 
 #### Wire Protocol Frame Types
+
 Defined in `core-dtn/src/main/kotlin/com/oppmesh/dtn/domain/model/WireFrame.kt`:
+
 * **`HELLO_SUMMARY`**: Exchanged immediately upon connection. Contains lists of `knownPacketIds` and `deliveredPacketIds`.
 * **`PACKET_BUNDLE`**: Transports packet metadata, routing state, hop count, hop path CSV, and text payload.
 * **`DELIVERY_ACK`**: Propagates delivered packet IDs back through intermediate nodes to purge buffered copies and stop redundant flooding.
 
 ### 2.4 Large File Transfer (Up to 20MB)
+
 * **File**: `app/src/main/kotlin/com/oppmesh/dtn/util/FileUtils.kt`
 * **Payload Type**: Google Nearby Connections `Payload.Type.FILE`.
 * **Flow**:
@@ -113,6 +123,7 @@ Defined in `core-dtn/src/main/kotlin/com/oppmesh/dtn/domain/model/WireFrame.kt`:
   5. The receiving node maps the incoming `Payload.Type.FILE` ID to the pending bundle, stores the file into internal storage, and updates Room SQLite with the absolute file path.
 
 ### 2.5 Local Persistence (Room SQLite)
+
 * **Database**: `app/src/main/kotlin/com/oppmesh/dtn/data/local/OppMeshDatabase.kt`
 * **Entities**:
   * `PacketEntity`: Stores messages, status (`STORED`, `CARRIED`, `DELIVERED`, `EXPIRED`), copies, hop path history (`NODE-A -> NODE-X -> NODE-B`), and file paths.
@@ -120,6 +131,7 @@ Defined in `core-dtn/src/main/kotlin/com/oppmesh/dtn/domain/model/WireFrame.kt`:
   * `ContactLogEntity`: Audit log of peer encounters, duration, RSSI, and packet exchange counts.
 
 ### 2.6 Background Execution & WakeLock
+
 * **File**: `app/src/main/kotlin/com/oppmesh/dtn/service/MeshSyncForegroundService.kt`
 * **Type**: Android Foreground Service with type `connectedDevice`.
 * **Features**:
@@ -178,12 +190,14 @@ sequenceDiagram
 ## 5. Build, Installation & Permissions
 
 ### 5.1 Prerequisites
+
 * Android Studio Iguana (2023.2.1) or newer
 * Android SDK 34 (UpsideDownCake)
 * Minimum SDK: Android 8.0 (API Level 26)
 * JDK 17
 
 ### 5.2 Build Commands
+
 ```bash
 # Build Debug APK
 ./gradlew :app:assembleDebug
@@ -196,7 +210,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ### 5.3 Required Android Permissions
+
 Configured in `app/src/main/AndroidManifest.xml`:
+
 * `BLUETOOTH_SCAN`, `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT` (`neverForLocation` flag where applicable)
 * `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` (Required by Android 11 and below for BLE beaconing)
 * `NEARBY_WIFI_DEVICES` (Android 13+ Wi-Fi Direct / Aware discovery)

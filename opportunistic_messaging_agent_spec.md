@@ -5,9 +5,11 @@
 You are an autonomous Android & Systems Engineering Agent building **OppMesh**, a complete Delay-Tolerant Networking (DTN) store-carry-and-forward messaging prototype and discrete-event simulator in **Kotlin (Android Studio)**.
 
 ### Research Question
+
 How do **Direct Delivery**, **Epidemic Forwarding**, and **Binary Spray-and-Wait** compare in **delivery ratio**, **average delivery delay**, and **number of transmissions per delivered message** when mobile nodes meet at random without network infrastructure?
 
 ### Core Deliverables to Implement
+
 1. **Android Application (`:app` module, Kotlin + Jetpack Compose + Room + Google Nearby Connections API)**:
    - Stores messages locally when no peers are in range, carries them while the user moves, and automatically discovers, connects, and exchanges eligible messages upon physical proximity with another phone.
    - Implements selectable forwarding rules: **Direct Delivery**, **Epidemic Forwarding**, and **Binary Spray-and-Wait** ($L$ copies).
@@ -30,6 +32,7 @@ Configure a multi-module Gradle project in Android Studio using Kotlin DSL (`bui
 | `scripts/plot_results.py` | Optional Python script to plot CSV output from `:simulator` and phone logs into publication-ready charts | Python 3, `pandas`, `matplotlib` |
 
 ### Package Organization Inside `:app`
+
 - `com.oppmesh.dtn.data.local` — Room database (`OppMeshDatabase`), DAOs (`PacketDao`, `ContactLogDao`), and entities (`PacketEntity`, `ContactLogEntity`).
 - `com.oppmesh.dtn.data.nearby` — `NearbyMeshManager` wrapping Google Play Services `ConnectionsClient`, deterministic connection tie-breaking, and payload serialization.
 - `com.oppmesh.dtn.service` — `MeshSyncForegroundService` managing persistent notification, wake locks, and continuous advertising/discovery loops.
@@ -39,6 +42,7 @@ Configure a multi-module Gradle project in Android Studio using Kotlin DSL (`bui
 ## 3. Gradle Dependencies & Android Manifest Configuration
 
 ### Version Alignment (`gradle/libs.versions.toml` or `app/build.gradle.kts`)
+
 - **Min SDK**: `26` (Android 8.0) | **Target / Compile SDK**: `34` (Android 14)
 - **Google Play Services Nearby**: `com.google.android.gms:play-services-nearby:19.3.0` (refer to [Nearby Connections Get Started](https://www.google.com/search?q=https%3A%2F%2Fdevelopers.google.com%2Fnearby%2Fconnections%2Fandroid%2Fget-started))
 - **Room Persistence**: `androidx.room:room-runtime:2.6.1`, `androidx.room:room-ktx:2.6.1`, `ksp("androidx.room:room-compiler:2.6.1")`
@@ -46,6 +50,7 @@ Configure a multi-module Gradle project in Android Studio using Kotlin DSL (`bui
 - **Jetpack Compose**: Material 3 (`androidx.compose.material3:material3`), `lifecycle-viewmodel-compose:2.8.4`
 
 ### Required Permissions (`app/src/main/AndroidManifest.xml`)
+
 Nearby Connections uses Bluetooth, BLE, and Wi-Fi Direct under the hood. Declare and request runtime permissions across Android 8–14+:
 
 ```xml
@@ -74,6 +79,7 @@ Nearby Connections uses Bluetooth, BLE, and Wi-Fi Direct under the hood. Declare
 ```
 
 Register `MeshSyncForegroundService` in `AndroidManifest.xml` with:
+
 ```xml
 <service
     android:name=".service.MeshSyncForegroundService"
@@ -85,6 +91,7 @@ Register `MeshSyncForegroundService` in `AndroidManifest.xml` with:
 ## 4. Data Models & Room Database Schema
 
 ### 4.1 `RoutingStrategy` Enum
+
 ```kotlin
 package com.oppmesh.dtn.domain.model
 
@@ -99,7 +106,9 @@ enum class RoutingStrategy {
 ```
 
 ### 4.2 `PacketEntity` (Stored & Carried Messages)
+
 Stores every message originated by or relayed through the device.
+
 ```kotlin
 package com.oppmesh.dtn.data.local
 
@@ -127,7 +136,9 @@ data class PacketEntity(
 ```
 
 ### 4.3 `ContactLogEntity` (Contact, Delivery & Failure Telemetry)
+
 Captures every peer encounter, handshake latency, transfer count, and failure event required by the experiment rubric.
+
 ```kotlin
 package com.oppmesh.dtn.data.local
 
@@ -156,6 +167,7 @@ data class ContactLogEntity(
 ## 5. Wire Protocol & Forwarding Engine Specification
 
 ### 5.1 Wire Frame Format (`WireFrame`)
+
 Exchange JSON frames serialized as UTF-8 `ByteArray` payloads (`Payload.fromBytes()`) over Nearby Connections:
 
 ```kotlin
@@ -196,7 +208,9 @@ data class NetworkPacketDto(
 ```
 
 ### 5.2 Three-Step Contact Exchange Handshake
+
 Whenever Phone A and Phone B establish a connection:
+
 1. **Step 1 — `HELLO_SUMMARY` Exchange**:
    - Both phones immediately send a `HELLO_SUMMARY` frame containing their `senderNodeId`, `senderWallClockMs` (to estimate clock skew $\Delta t$ between phones), `knownPacketIds` (all unexpired packet IDs in their local buffer), and `deliveredPacketIds` (all packet IDs already confirmed delivered).
 2. **Step 2 — Routing Decision & `PACKET_BUNDLE` Transmission**:
@@ -251,6 +265,7 @@ Build a clean 3-tab Jetpack Compose interface in `MainActivity`:
 Create a self-contained Kotlin/JVM module `:simulator` (or run `SimulatorMain.kt` via `./gradlew :simulator:run`) that uses the exact same routing rules as the Android app to answer the research question across 10+ random mobile nodes.
 
 ### 8.1 Simulation Model & Parameters
+
 - **World Area**: $500\text{ m} \times 500\text{ m}$ 2D torus or bounded square.
 - **Time Step**: $\Delta t = 1.0\text{ s}$, total simulation duration $T = 3600\text{ s}$ (1 hour), with a warmup/message-generation window during the first $1800\text{ s}$ (100 random source-to-destination messages generated via Poisson arrival) and a $1800\text{ s}$ drain window so late messages have time to deliver.
 - **Mobility Model (Random Waypoint)**:
@@ -260,6 +275,7 @@ Create a self-contained Kotlin/JVM module `:simulator` (or run `SimulatorMain.kt
   - On a new contact edge (nodes were out of range at $t-1$ and are in range at $t$), a connection setup succeeds with probability $1 - p_{\text{fail}}$ after a handshake delay of $t_{\text{setup}} = 2\text{ s}$. If setup fails, log a connection failure event.
 
 ### 8.2 Mandatory Experimental Matrix (Minimum 3 Settings + Extension)
+
 Configure `SimulatorMain.kt` to run 5 random seeds per configuration and output aggregated mean metrics for all three strategies (`DIRECT_DELIVERY`, `EPIDEMIC`, `SPRAY_AND_WAIT` with $L=6$):
 
 | Experiment Suite | Controlled Variable | Values Tested | Fixed Parameters | Purpose |
@@ -269,6 +285,7 @@ Configure `SimulatorMain.kt` to run 5 random seeds per configuration and output 
 | **Setting 3: Handshake Failure Sweep** | Connection setup failure rate ($p_{\text{fail}}$) | $p_{\text{fail}} \in \{0.0, 0.25, 0.50\}$ | $N = 20$, $R = 30\text{ m}$, $\text{TTL} = 1800\text{ s}$ | Quantifies sensitivity of each strategy to real-world BLE/Wi-Fi Direct discovery drops |
 
 ### 8.3 Complete Reference Implementation for `SimulatorMain.kt`
+
 Place the following self-contained simulator in `simulator/src/main/kotlin/com/oppmesh/simulator/SimulatorMain.kt` so it compiles and runs out-of-the-box:
 
 ```kotlin
